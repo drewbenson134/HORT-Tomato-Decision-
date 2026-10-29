@@ -17,6 +17,8 @@ OPTIONS = {
 }
 if "submitted" not in st.session_state:
     st.session_state.submitted = False
+if "initial_locked" not in st.session_state:
+    st.session_state.initial_locked = False
 st.title("🍅 The $25,000 Tomato Decision")
 st.caption("HORT 2000 • AI stakeholder negotiation and transparent economic decision-making")
 st.warning("Educational scenario: all prices, losses, intervention costs and efficacies are illustrative assumptions, not field forecasts or pesticide recommendations.")
@@ -29,9 +31,22 @@ with t1:
     b.metric("Projected saleable yield", "30,000 lb/acre")
     c.metric("Assumed price", "$0.80/lb")
     st.write("**Your task:** Recommend an intervention, identify what additional scouting evidence you need, and defend the recommendation to four competing stakeholders.")
-    st.radio("Initial prediction — before you consult a Gem", list(OPTIONS), key="initial_prediction")
-    st.text_area("Why is this your initial choice?", key="initial_rationale", placeholder="Use horticultural reasoning; explain what is uncertain.")
-    st.info("First record your prediction. Then use the simulator and Gem conversations to test it.")
+    st.radio("Initial prediction — before you consult a Gem", list(OPTIONS), key="initial_prediction", disabled=st.session_state.initial_locked)
+    st.text_area("Why is this your initial choice?", key="initial_rationale", placeholder="Use horticultural reasoning; explain what is uncertain.", disabled=st.session_state.initial_locked)
+    if not st.session_state.initial_locked:
+        if st.button("Lock In My Initial Decision", type="primary"):
+            rationale = st.session_state.initial_rationale.strip()
+            if len(rationale) < 20:
+                st.warning("Explain your reasoning in at least 20 characters before locking in your decision.")
+            else:
+                st.session_state.locked_initial_prediction = st.session_state.initial_prediction
+                st.session_state.locked_initial_rationale = rationale
+                st.session_state.initial_locked = True
+                st.rerun()
+        st.info("Record your prediction before exploring the simulator and stakeholder conversations.")
+    else:
+        st.success("Initial decision recorded. Investigate the economic consequences and consult the four stakeholders. You will revisit your original reasoning at the end.")
+        st.caption("Your initial response is now locked for comparison with your final decision.")
 with t2:
     st.subheader("Compare hypothetical management strategies")
     st.write("The economic model calculates revenue preserved minus intervention cost. Efficacy means the fraction of the **assumed loss** avoided—not the fraction of whiteflies killed.")
@@ -71,6 +86,12 @@ with t3:
     st.info("Ask: What would you object to? What evidence could change your position? What compromise would you accept?")
 with t4:
     st.subheader("Negotiate, revise and defend")
+    if st.session_state.initial_locked:
+        st.markdown("**Your locked initial decision**")
+        st.write(st.session_state.locked_initial_prediction)
+        st.info(st.session_state.locked_initial_rationale)
+    else:
+        st.warning("Your initial decision has not been locked yet. Return to Tab 1 to record it before submitting your final recommendation.")
     st.radio("Final recommended strategy", list(OPTIONS), key="final_prediction")
     evidence = st.text_area("What biological or scouting evidence supports your decision?", key="evidence")
     stakeholders = st.text_area("How does your recommendation address all four stakeholders?", key="stakeholder_response")
@@ -88,9 +109,16 @@ with t4:
         else:
             st.success("Your response addresses the four review prompts. Now ask another group to challenge the scientific and economic assumptions.")
         st.session_state.submitted = True
+    if st.session_state.initial_locked:
+        st.markdown("**Initial versus final recommendation**")
+        st.write(f"Initial: **{st.session_state.locked_initial_prediction}** → Final: **{st.session_state.final_prediction}**")
+        if st.session_state.locked_initial_prediction == st.session_state.final_prediction:
+            st.caption("The strategy remained the same. Explain how your reasoning became stronger or more nuanced.")
+        else:
+            st.caption("Your recommendation changed. Explain which new evidence or stakeholder concern drove the revision.")
     records = [
-        ("Initial strategy",st.session_state.get("initial_prediction", "")),
-        ("Initial rationale",st.session_state.get("initial_rationale", "")),
+        ("Initial strategy",st.session_state.get("locked_initial_prediction", "NOT LOCKED")),
+        ("Initial rationale",st.session_state.get("locked_initial_rationale", "NOT LOCKED")),
         ("Final strategy",st.session_state.get("final_prediction", "")),
         ("Scouting and biological evidence", evidence),
         ("Stakeholder considerations", stakeholders),
